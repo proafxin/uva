@@ -46,8 +46,6 @@ int main() {
     while (tc--) {
         ULL a, b, k;
         scanf("%llu %llu %llu", &a, &b, &k);
-        // cout << F(a, b, k) << endl;
-        // cout << G(a, b, k) << endl;
     }
 
     return 0;
