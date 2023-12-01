@@ -13,7 +13,8 @@
 
 #define ULL unsigned long long
 #define LIMIT 2000
-#define MAX_PRIME_FACTORS 5
+#define MAX 100000
+#define MAX_PRIME_FACTORS 10
 
 using namespace std;
 
@@ -41,144 +42,116 @@ ULL partialSumSumOfDivisors(ULL x) {
     return res >> 1;
 }
 
-ULL smallestFactors[LIMIT];
-
-void sieve() {
-    for (ULL i = 0; i < LIMIT; i++) {
-        smallestFactors[i] = i;
-    }
-
-    for (ULL i = 2; i < LIMIT; i += 2) {
-        smallestFactors[i] = 2;
-    }
-
-    for (ULL i = 3; i < LIMIT; i += 2) {
-        for (ULL j = i;; j += 2) {
-            ULL tmp = (j * i);
-            if (tmp >= LIMIT) {
-                break;
-            }
-            if (smallestFactors[tmp] == tmp) {
-                smallestFactors[tmp] = i;
-            }
-        }
-    }
-}
-
+bool flag[MAX];
 struct Factorization {
     ULL n;
-    ULL primeFactors[MAX_PRIME_FACTORS];
-    int exponents[MAX_PRIME_FACTORS];
-    ULL sumOfDivisorContributions[MAX_PRIME_FACTORS];
-    ULL numPrimeFactors = 0;
-    ULL numberOfDivisors = 1;
-    ULL sumOfDivisors = 1;
+    map<ULL, ULL> primePowers;
+    map<ULL, ULL> sumOfDivisorContributions;
+    map<ULL, ULL> numberOfDivisorContributions;
+    ULL numberOfDivisors;
+    ULL sumOfDivisors;
 
-    int mobius = 1;
-    ULL radical = 1;
+    int mobius;
+    ULL radical;
 
     bool operator<(Factorization p) const { return n < p.n; }
     bool operator>(Factorization p) const { return n > p.n; }
     bool operator==(Factorization p) const { return n == p.n; }
 
-    void print() {
-        for (int i = 0; i < numPrimeFactors; i++) {
-            cout << primeFactors[i] << " " << exponents[i] << endl;
-        }
-        cout << radical << " " << numPrimeFactors << " " << mobius << endl;
+    void reset() {
+        primePowers.clear();
+        sumOfDivisorContributions.clear();
+        numberOfDivisorContributions.clear();
+        numberOfDivisors = 1;
+        sumOfDivisors = 1;
+        mobius = 1;
+        radical = 1;
     }
 
-    void updateRadical(ULL prime) {
+    void addSinglePrimeFactor(ULL prime, ULL exponent) {
+        primePowers[prime] = exponent;
+        if (exponent > 1) {
+            mobius *= 0;
+        }
+
+        else {
+            mobius *= -1;
+        }
         if (radical % prime) {
             radical *= prime;
         }
+
+        else {
+            sumOfDivisors /= sumOfDivisorContributions[prime];
+            numberOfDivisors /= numberOfDivisorContributions[prime];
+        }
+
+        ULL contribution = (pow(prime, exponent + 1) - 1);
+        contribution /= (prime - 1);
+
+        sumOfDivisorContributions[prime] = contribution;
+        sumOfDivisors *= contribution;
+        numberOfDivisorContributions[prime] = exponent + 1;
+        numberOfDivisors *= (exponent + 1);
     }
 
-    void updateMobius(int exponent) {
-        if (exponent > 1) {
-            mobius *= 0;
-        } else {
-            mobius *= -1;
+    void print() {
+        cout << n << " " << radical << " " << mobius << endl;
+        for (auto primePower : primePowers) {
+            cout << primePower.first << " " << primePower.second << endl;
         }
     }
 
-    void updateRadicalAtIndex(int i) { updateRadical(primeFactors[i]); }
+} factorizations[MAX];
 
-    void updateMobiusAtIndex(int i) { updateMobius(exponents[i]); }
-
-    void updateNumberOfDivisorsAtIndex(int i) {
-        numberOfDivisors /= exponents[i];
-        numberOfDivisors *= (exponents[i] + 1);
+void sieve() {
+    for (ULL i = 0; i < MAX; i++) {
+        factorizations[i].reset();
+        factorizations[i].n = i;
     }
 
-    void updateSumOfDivisorAtIndex(int i) {
-        sumOfDivisors /= sumOfDivisorContributions[i];
-        sumOfDivisorContributions[i] += (ULL)pow(primeFactors[i], exponents[i]);
-        sumOfDivisors *= sumOfDivisorContributions[i];
-    }
-
-    void addPrimeFactorAtIndex(int i) {
-        exponents[i]++;
-        n *= primeFactors[i];
-        updateRadicalAtIndex(i);
-        updateMobiusAtIndex(i);
-        updateNumberOfDivisorsAtIndex(i);
-        updateSumOfDivisorAtIndex(i);
-    }
-};
-
-Factorization factorize(ULL n) {
-    Factorization factorization;
-    factorization.n = n;
-
-    while (n > 1) {
-        ULL smallestFactor = smallestFactors[n];
-        int exponent = 0;
-        factorization.sumOfDivisorContributions[factorization.numPrimeFactors] = smallestFactor;
-        while (!(n % smallestFactor)) {
-            n /= smallestFactor;
-            exponent++;
-            factorization.sumOfDivisorContributions[factorization.numPrimeFactors] *=
-                smallestFactor;
+    for (ULL i = 2; i < MAX; i++) {
+        if (!flag[i]) {
+            for (ULL j = i; j < MAX; j += i) {
+                flag[j] = true;
+                int exponent = 0;
+                ULL n = j;
+                while (!(n % i)) {
+                    n /= i;
+                    exponent++;
+                }
+                factorizations[j].addSinglePrimeFactor(i, exponent);
+            }
         }
-        factorization.sumOfDivisorContributions[factorization.numPrimeFactors]--;
-        factorization.sumOfDivisorContributions[factorization.numPrimeFactors] /=
-            (smallestFactor - 1);
-        factorization.sumOfDivisors *=
-            factorization.sumOfDivisorContributions[factorization.numPrimeFactors];
-        factorization.numberOfDivisors *= (exponent + 1);
-        factorization.primeFactors[factorization.numPrimeFactors] = smallestFactor;
-        factorization.exponents[factorization.numPrimeFactors] = exponent;
-        factorization.numPrimeFactors++;
-        factorization.updateMobius(exponent);
-        factorization.updateRadical(smallestFactor);
     }
-
-    return factorization;
 }
 
 vector<ULL> getSquareFreeDivisors(Factorization factorization) {
     vector<ULL> divisors;
     divisors.clear();
 
-    int numPrimeFactors = factorization.numPrimeFactors;
-    for (int i = 0; i < (1 << numPrimeFactors); i++) {
+    vector<ULL> primes;
+    primes.clear();
+    for (auto primePower : factorization.primePowers) {
+        primes.push_back(primePower.first);
+    }
+    int numPrimes = primes.size();
+    for (int i = 0; i < (1 << numPrimes); i++) {
         ULL divisor = 1;
-        for (int j = 0; j < numPrimeFactors; j++) {
+        for (int j = 0; j < numPrimes; j++) {
             if (i & (1 << j)) {
-                divisor *= factorization.primeFactors[j];
+                divisor *= primes[j];
             }
         }
         divisors.push_back(divisor);
     }
+
     sort(divisors.begin(), divisors.end());
 
     return divisors;
 }
 
-Factorization factorizations[LIMIT];
-
-vector<ULL> squareFreeDivisors[LIMIT];
+vector<ULL> squareFreeDivisors[MAX];
 
 vector<Factorization> generateSmoothNumbers(ULL n, ULL x) {
     vector<Factorization> smoothNumbers;
@@ -200,8 +173,8 @@ vector<Factorization> generateSmoothNumbers(ULL n, ULL x) {
 
         smoothNumbers.push_back(cur);
 
-        for (int i = 0; i < factorization.numPrimeFactors; i++) {
-            ULL m = cur.n * factorization.primeFactors[i];
+        for (auto primePower : factorization.primePowers) {
+            ULL m = cur.n * primePower.first;
             if (m > x) {
                 break;
             }
@@ -210,21 +183,12 @@ vector<Factorization> generateSmoothNumbers(ULL n, ULL x) {
                 continue;
             }
             Factorization tmp = cur;
-            tmp.addPrimeFactorAtIndex(i);
 
             queue.insert(tmp);
         }
     }
 
     return smoothNumbers;
-}
-
-void precomputeFactorizations() {
-    sieve();
-    for (ULL n = 2; n < LIMIT; n++) {
-        factorizations[n] = factorize(n);
-        squareFreeDivisors[n] = getSquareFreeDivisors(factorizations[n]);
-    }
 }
 
 map<ULL, vector<Factorization>> generateAllSmoothNumbers(ULL k, ULL x) {
@@ -338,13 +302,28 @@ Pair U(ULL k, ULL x) {
 }
 
 int main() {
-    freopen("sample.txt", "r", stdin);
-    precomputeFactorizations();
+    // freopen("sample.txt", "r", stdin);
+    sieve();
+    for (ULL n = 2; n < MAX; n++) {
+        squareFreeDivisors[n] = getSquareFreeDivisors(factorizations[n]);
+    }
+
+    for (int i = 1; i < 20; i++) {
+        cout << i;
+        for (auto divisor : squareFreeDivisors[i]) {
+            cout << " " << divisor;
+        }
+        cout << endl;
+        for (auto primePower : factorizations[i].sumOfDivisorContributions) {
+            cout << primePower.first << " "
+                 << factorizations[i].numberOfDivisorContributions[primePower.first] << " "
+                 << primePower.second << endl;
+        }
+    }
+
     // for (ULL i = 2; i < LIMIT; i++) {
     //     generateSmoothNumbers(i, (ULL)1e12);
     // }
-    // cout << "here" << endl;
-    // return 0;
 
     // for (ULL n = 1; n < 20; n++) {
     //     // factorizations[n].print();
