@@ -254,111 +254,9 @@ struct Pair {
 
 bool operator<(Pair p, Pair q) { return (p.a < q.a) || ((p.a == q.a) && (p.b < q.b)); }
 
-map<Pair, ULL> tauValues;
+bool operator==(Pair p, Pair q) { return p.a == q.a && p.b == q.b; }
 
-ULL S(ULL k, ULL x) {
-    if (x < k) {
-        return 0;
-    }
-    Pair pair;
-    pair.a = k;
-    pair.b = x;
-
-    if (tauValues.find(pair) != tauValues.end()) {
-        return tauValues[pair];
-    }
-
-    if (k == 1) {
-        return tauValues[pair] = partialSumNumberOfDivisors(x);
-    }
-
-    vector<Factorization> smoothNumbers = allSmoothNumbers[k];
-
-    if (x == k) {
-        return tauValues[pair] = smoothNumbers[0].numberOfDivisors;
-    }
-
-    ULL res = 0;
-    ULL internalSum = 0;
-    ULL runningY = 0;
-    for (auto smoothNumber : smoothNumbers) {
-        ULL n = smoothNumber.n;
-        ULL y = x / n;
-        if (y == runningY) {
-            res += smoothNumber.numberOfDivisors * internalSum;
-            continue;
-        }
-
-        ULL tmp = 0;
-
-        int numSquareFreeDivisors = squareFreeDivisors[k].size();
-        for (int i = 0; i < numSquareFreeDivisors && squareFreeDivisors[k][i] <= x; i++) {
-            ULL divisor = squareFreeDivisors[k][i];
-            tmp += factorizations[divisor].mobius * S(divisor, y);
-        }
-
-        res += tmp * smoothNumber.numberOfDivisors;
-        internalSum = tmp;
-        runningY = y;
-    }
-
-    return tauValues[pair] = res;
-}
-
-ULL F(ULL a, ULL b, ULL k) { return S(k, b) - S(k, a - 1); }
-
-map<Pair, ULL> sigmaValues;
-
-ULL T(ULL k, ULL x) {
-    if (x < k) {
-        return 0;
-    }
-    Pair pair;
-    pair.a = k;
-    pair.b = x;
-
-    if (sigmaValues.find(pair) != sigmaValues.end()) {
-        return sigmaValues[pair];
-    }
-
-    if (k == 1) {
-        return sigmaValues[pair] = partialSumSumOfDivisors(x);
-    }
-
-    vector<Factorization> smoothNumbers = allSmoothNumbers[k];
-
-    if (x == k) {
-        return sigmaValues[pair] = smoothNumbers[0].numberOfDivisors;
-    }
-
-    ULL res = 0;
-    ULL internalSum = 0;
-    ULL runningY = 0;
-    for (auto smoothNumber : smoothNumbers) {
-        ULL n = smoothNumber.n;
-        ULL y = x / n;
-        if (y == runningY) {
-            res += smoothNumber.sumOfDivisors * internalSum;
-            continue;
-        }
-
-        ULL tmp = 0;
-
-        int numSquareFreeDivisors = squareFreeDivisors[k].size();
-        for (int i = 0; i < numSquareFreeDivisors && squareFreeDivisors[k][i] <= x; i++) {
-            ULL divisor = squareFreeDivisors[k][i];
-            tmp += factorizations[divisor].mobius * T(divisor, y);
-        }
-
-        res += tmp * smoothNumber.sumOfDivisors;
-        internalSum = tmp;
-        runningY = y;
-    }
-
-    return sigmaValues[pair] = res;
-}
-
-ULL G(ULL a, ULL b, ULL k) { return T(k, b) - T(k, a - 1); }
+map<Pair, ULL> tauValues, sigmaValues;
 
 Pair U(ULL k, ULL x) {
     Pair res;
@@ -412,20 +310,24 @@ Pair U(ULL k, ULL x) {
             continue;
         }
 
-        Pair internal;
-        internal.a = 0;
-        internal.b = 0;
+        Pair ySum;
+        ySum.a = 0;
+        ySum.b = 0;
+
+        Pair internalPair;
+        internalPair.a = y;
+        internalPair.b = k;
 
         int numSquareFreeDivisors = squareFreeDivisors[k].size();
         for (int i = 0; i < numSquareFreeDivisors && squareFreeDivisors[k][i] <= x; i++) {
             ULL divisor = squareFreeDivisors[k][i];
             Pair prev = U(divisor, y);
-            internal.a += factorizations[divisor].mobius * prev.a;
-            internal.b += factorizations[divisor].mobius * prev.b;
+            ySum.a += factorizations[divisor].mobius * prev.a;
+            ySum.b += factorizations[divisor].mobius * prev.b;
         }
 
-        res.a += internal.a * smoothNumber.numberOfDivisors;
-        res.b += internal.b * smoothNumber.sumOfDivisors;
+        res.a += ySum.a * smoothNumber.numberOfDivisors;
+        res.b += ySum.b * smoothNumber.sumOfDivisors;
         runningY = y;
     }
 
@@ -438,6 +340,11 @@ Pair U(ULL k, ULL x) {
 int main() {
     freopen("sample.txt", "r", stdin);
     precomputeFactorizations();
+    // for (ULL i = 2; i < LIMIT; i++) {
+    //     generateSmoothNumbers(i, (ULL)1e12);
+    // }
+    // cout << "here" << endl;
+    // return 0;
 
     // for (ULL n = 1; n < 20; n++) {
     //     // factorizations[n].print();
@@ -494,8 +401,6 @@ int main() {
         ULL a, b, k;
         scanf("%llu %llu %llu", &a, &b, &k);
         allSmoothNumbers = generateAllSmoothNumbers(k, b);
-        tauValues.clear();
-        sigmaValues.clear();
         // for (auto smoothNumbers : allSmoothNumbers) {
         //     for (int j = 0; j < smoothNumbers.second.size(); j++) {
         //         cout << " " << smoothNumbers.second[j].n;
